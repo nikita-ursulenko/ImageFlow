@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ImageFlow - Image Converter & Optimizer</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="apple-touch-icon" href="logo.png">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Кнопка меню для мобильных -->
+    <button class="menu-toggle" id="menuToggle" aria-label="Открыть меню">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+    
+    <!-- Затемнение фона для мобильных -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    
+    <!-- Боковое меню -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-brand" aria-label="Image Converter">
+                <img class="sidebar-logo" src="logo.png" alt="Логотип">
+                <span class="sidebar-brand-text">ImageFlow</span>
+            </div>
+            <button class="sidebar-close" id="sidebarClose" aria-label="Закрыть меню">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <nav class="sidebar-nav">
+            <button class="nav-item active" data-tab="converter">
+                <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/><path d="M21 15l-3-3 3-3"/></svg></span>
+                <span class="nav-text">Конвертер</span>
+            </button>
+            <button class="nav-item" data-tab="history">
+                <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg></span>
+                <span class="nav-text">История</span>
+            </button>
+            <button class="nav-item" data-tab="settings">
+                <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"/></svg></span>
+                <span class="nav-text">Настройки</span>
+            </button>
+        </nav>
+    </aside>
+    
+    <!-- Основной контент -->
+    <div class="main-content">
+        <div class="container">
+            <div class="card">
+                <h1>ImageFlow</h1>
+                
+                <!-- Вкладка Конвертер -->
+                <div class="tab-content active" id="converter-tab">
+                <p class="subtitle">Конвертация, оптимизация и обработка изображений</p>
+                
+                <form id="convertForm" enctype="multipart/form-data">
+                <!-- Выбор форматов -->
+                <div class="format-selector">
+                    <div class="format-group">
+                        <label class="format-label">Из формата:</label>
+                        <select id="fromFormat" class="format-select">
+                            <option value="webp">WebP</option>
+                            <option value="png">PNG</option>
+                            <option value="jpg">JPG</option>
+                            <option value="jpeg">JPEG</option>
+                        </select>
+                    </div>
+                    <div class="format-arrow">→</div>
+                    <div class="format-group">
+                        <label class="format-label">В формат:</label>
+                        <select id="toFormat" class="format-select">
+                            <option value="png">PNG</option>
+                            <option value="jpg">JPG</option>
+                            <option value="jpeg">JPEG</option>
+                            <option value="webp">WebP</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Дополнительные опции обработки -->
+                <div class="processing-options">
+                    <div class="option-group">
+                        <label class="option-label">
+                            <input type="checkbox" id="enableResize">
+                            <span>Изменить размер</span>
+                        </label>
+                        <div class="resize-controls" id="resizeControls" style="display: none;">
+                            <div class="resize-inputs">
+                                <input type="number" id="resizeWidth" class="resize-input" placeholder="Ширина" min="1" max="10000">
+                                <span class="resize-separator">×</span>
+                                <input type="number" id="resizeHeight" class="resize-input" placeholder="Высота" min="1" max="10000">
+                            </div>
+                            <label class="resize-checkbox">
+                                <input type="checkbox" id="maintainAspectRatio" checked>
+                                <span>Сохранить пропорции</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="option-group">
+                        <label class="option-label">
+                            <input type="checkbox" id="enableRotate">
+                            <span>Повернуть</span>
+                        </label>
+                        <div class="rotate-controls" id="rotateControls" style="display: none;">
+                            <select id="rotateAngle" class="rotate-select">
+                                <option value="90">90° по часовой</option>
+                                <option value="180">180°</option>
+                                <option value="270">270° по часовой</option>
+                                <option value="-90">90° против часовой</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="option-group">
+                        <label class="option-label">
+                            <input type="checkbox" id="enableOptimize">
+                            <span>Оптимизировать (сжать)</span>
+                        </label>
+                        <div class="optimize-controls" id="optimizeControls" style="display: none;">
+                            <input type="range" id="optimizeLevel" class="optimize-slider" min="1" max="100" value="80">
+                            <div class="optimize-labels">
+                                <span>Меньше размер</span>
+                                <span>Больше размер</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="upload-area" id="uploadArea">
+                    <input type="file" id="fileInput" name="imageFiles" accept="image/webp,image/png,image/jpeg,image/jpg" multiple required>
+                    <label for="fileInput" class="upload-label">
+                        <span class="upload-icon"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
+                        <span class="upload-text">Выберите файлы</span>
+                        <span class="upload-hint">или перетащите файлы сюда (можно несколько)</span>
+                    </label>
+                </div>
+                
+                <div id="filesList" class="files-list" style="display: none;">
+                    <div class="files-list-header">
+                        <span>Выбрано файлов: <strong id="filesCount">0</strong></span>
+                        <button type="button" id="clearAllFiles" class="clear-all-btn">Очистить все</button>
+                    </div>
+                    <div id="filesContainer" class="files-container"></div>
+                </div>
+                
+                <div class="save-options">
+                    <label class="save-option-label">
+                        <input type="checkbox" id="chooseFolder" checked>
+                        <span>Выбрать папку для сохранения</span>
+                    </label>
+                    <small class="save-hint" id="saveHint" style="display: none;">Доступно только в Chrome/Edge</small>
+                </div>
+                
+                <button type="submit" id="convertBtn" class="convert-btn" disabled>
+                    <span id="btnText">Конвертировать</span>
+                    <span id="btnLoader" class="loader" style="display: none;"></span>
+                </button>
+            </form>
+            
+                <div id="errorMessage" class="error-message" style="display: none;"></div>
+                <div id="successMessage" class="success-message" style="display: none;"></div>
+            </div>
+            
+            <!-- Вкладка История -->
+            <div class="tab-content" id="history-tab" style="display: none;">
+                <h2 class="tab-title">История конвертаций</h2>
+                <div class="history-controls">
+                    <button id="clearHistoryBtn" class="clear-history-btn">Очистить историю</button>
+                    <span class="history-count">Всего конвертаций: <strong id="historyTotal">0</strong></span>
+                </div>
+                <div id="historyList" class="history-list">
+                    <p class="empty-history">История пуста</p>
+                </div>
+            </div>
+            
+            <!-- Вкладка Настройки -->
+            <div class="tab-content" id="settings-tab" style="display: none;">
+                <h2 class="tab-title">Настройки конвертации</h2>
+                <div class="settings-group">
+                    <label class="setting-label">
+                        <span>Качество PNG:</span>
+                        <select id="pngQuality" class="setting-select">
+                            <option value="100">Максимальное (100%)</option>
+                            <option value="95">Высокое (95%)</option>
+                            <option value="90" selected>Стандартное (90%)</option>
+                            <option value="80">Среднее (80%)</option>
+                            <option value="70">Низкое (70%)</option>
+                        </select>
+                    </label>
+                    <p class="setting-hint">Более высокое качество = больший размер файла</p>
+                </div>
+                <div class="settings-group">
+                    <label class="setting-label">
+                        <input type="checkbox" id="autoClearHistory" checked>
+                        <span>Автоматически очищать историю старше 30 дней</span>
+                    </label>
+                </div>
+                <div class="settings-group">
+                    <button id="saveSettingsBtn" class="save-settings-btn">Сохранить настройки</button>
+                </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
