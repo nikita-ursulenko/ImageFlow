@@ -7,7 +7,7 @@
 
 **ImageFlow** — элегантное и мощное решение для работы с изображениями. Конвертируйте между форматами, изменяйте размеры, поворачивайте и оптимизируйте изображения с красивым и интуитивным интерфейсом.
 
-![ImageFlow](<[https://img.shields.io/badge/ImageFlow-Ready-brightgreen](https://i.ibb.co/DD4D6Ltc/2026-01-14-21-44-17.png)>)
+![ImageFlow](<[https://img.shields.io/badge/ImageFlow-Ready-brightgreen](https://i.postimg.cc/hv31MQNT/Snimok-ekrana-2026-01-14-v-21-43-58.png)>)
 
 ---
 
