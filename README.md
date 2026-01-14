@@ -138,7 +138,7 @@ Converter-image/
 ## 🎨 Скриншоты
 
 <div align="center">
-  <img src="https://i.ibb.co/SXNX1JPY/image.png" alt="ImageFlow Interface" style="max-width: 100%; height: auto;" />
+  <img src="https://i.postimg.cc/HkFPdRZs/Snimok-ekrana-2026-01-14-v-21-44-17.png" alt="ImageFlow Interface" style="max-width: 100%; height: auto;" />
 </div>
 
 > _Современный интерфейс с интуитивным управлением_
