@@ -137,7 +137,9 @@ Converter-image/
 
 ## 🎨 Скриншоты
 
-![ImageFlow Interface](https://i.ibb.co/SXNX1JPY/image.png)
+<div align="center">
+  <img src="https://i.ibb.co/SXNX1JPY/image.png" alt="ImageFlow Interface" width="800" />
+</div>
 
 > _Современный интерфейс с интуитивным управлением_
 
