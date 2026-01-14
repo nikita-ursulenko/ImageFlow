@@ -33,6 +33,27 @@ const toFormatSelect = document.getElementById('toFormat');
 let selectedFiles = [];
 let selectedDirectoryHandle = null;
 
+// Элементы для сжатия
+const compressForm = document.getElementById('compressForm');
+const compressFileInput = document.getElementById('compressFileInput');
+const compressUploadArea = document.getElementById('compressUploadArea');
+const compressFilesList = document.getElementById('compressFilesList');
+const compressFilesContainer = document.getElementById('compressFilesContainer');
+const compressFilesCount = document.getElementById('compressFilesCount');
+const clearCompressFilesBtn = document.getElementById('clearCompressFiles');
+const compressBtn = document.getElementById('compressBtn');
+const compressBtnText = document.getElementById('compressBtnText');
+const compressBtnLoader = document.getElementById('compressBtnLoader');
+const compressErrorMessage = document.getElementById('compressErrorMessage');
+const compressSuccessMessage = document.getElementById('compressSuccessMessage');
+const compressLevelSlider = document.getElementById('compressLevel');
+const compressValue = document.getElementById('compressValue');
+const compressSizeInfo = document.getElementById('compressSizeInfo');
+const compressSizeValue = document.getElementById('compressSizeValue');
+const compressChooseFolderCheckbox = document.getElementById('compressChooseFolder');
+
+let compressSelectedFiles = [];
+
 // Маппинг форматов
 const formatMimeTypes = {
     webp: 'image/webp',
@@ -58,6 +79,7 @@ loadHistory();
 setupTabs();
 updateFileInputAccept();
 updateTitle();
+setupCompressTab();
 
 // Обработчики для новых опций обработки
 const enableResizeCheckbox = document.getElementById('enableResize');
@@ -79,10 +101,61 @@ if (enableRotateCheckbox) {
     });
 }
 
+const optimizeLevelSlider = document.getElementById('optimizeLevel');
+const optimizeValueSpan = document.getElementById('optimizeValue');
+const optimizeSizeInfo = document.getElementById('optimizeSizeInfo');
+const optimizeSizeValue = document.getElementById('optimizeSizeValue');
+
 if (enableOptimizeCheckbox) {
     enableOptimizeCheckbox.addEventListener('change', () => {
         optimizeControls.style.display = enableOptimizeCheckbox.checked ? 'block' : 'none';
+        if (enableOptimizeCheckbox.checked) {
+            updateOptimizeSize();
+        }
     });
+}
+
+if (optimizeLevelSlider && optimizeValueSpan) {
+    optimizeLevelSlider.addEventListener('input', (e) => {
+        optimizeValueSpan.textContent = e.target.value + '%';
+        updateOptimizeSize();
+    });
+}
+
+// Функция обновления предварительного размера файла при оптимизации
+function updateOptimizeSize() {
+    if (!enableOptimizeCheckbox || !enableOptimizeCheckbox.checked) {
+        if (optimizeSizeInfo) optimizeSizeInfo.style.display = 'none';
+        return;
+    }
+    
+    if (selectedFiles.length === 0) {
+        if (optimizeSizeInfo) optimizeSizeInfo.style.display = 'none';
+        return;
+    }
+    
+    const optimizeLevel = optimizeLevelSlider ? parseInt(optimizeLevelSlider.value) : 80;
+    
+    // Приблизительный расчет размера после оптимизации
+    // Уровень оптимизации влияет на качество: 1 = максимальное сжатие (низкое качество), 100 = минимальное сжатие (высокое качество)
+    // Приблизительная формула: новый_размер ≈ исходный_размер * (уровень_оптимизации / 100)
+    // Для более точного расчета нужно учитывать формат и особенности изображения
+    
+    const totalOriginalSize = selectedFiles.reduce((sum, file) => sum + file.size, 0);
+    
+    // Более реалистичная формула: учитываем, что сжатие нелинейно
+    // При уровне 1 (максимальное сжатие) размер может быть ~30-40% от оригинала
+    // При уровне 100 (минимальное сжатие) размер будет ~90-100% от оригинала
+    const minCompressionRatio = 0.3; // Минимальное сжатие (уровень 1)
+    const maxCompressionRatio = 1.0; // Максимальное сжатие (уровень 100)
+    const compressionRatio = minCompressionRatio + ((optimizeLevel - 1) / 99) * (maxCompressionRatio - minCompressionRatio);
+    
+    const estimatedSize = Math.round(totalOriginalSize * compressionRatio);
+    
+    if (optimizeSizeInfo && optimizeSizeValue) {
+        optimizeSizeValue.textContent = formatFileSize(estimatedSize);
+        optimizeSizeInfo.style.display = 'flex';
+    }
 }
 
 // Проверка поддержки File System Access API
@@ -208,6 +281,7 @@ function updateFilesList() {
     if (selectedFiles.length === 0) {
         filesList.style.display = 'none';
         convertBtn.disabled = true;
+        updateOptimizeSize(); // Обновляем размер при изменении файлов
         return;
     }
     
@@ -215,6 +289,7 @@ function updateFilesList() {
     filesCount.textContent = selectedFiles.length;
     convertBtn.disabled = false;
     hideMessages();
+    updateOptimizeSize(); // Обновляем размер при изменении файлов
     
     selectedFiles.forEach((file, index) => {
         const fileItem = document.createElement('div');
@@ -721,6 +796,310 @@ function getPngQuality() {
         return 90;
     }
     return 90;
+}
+
+// Настройка вкладки сжатия
+function setupCompressTab() {
+    if (!compressForm || !compressFileInput) return;
+    
+    // Обновление значения слайдера
+    if (compressLevelSlider && compressValue) {
+        compressLevelSlider.addEventListener('input', (e) => {
+            compressValue.textContent = e.target.value + '%';
+            updateCompressSize();
+        });
+    }
+    
+    // Обработка выбора файлов для сжатия
+    if (compressFileInput) {
+        compressFileInput.addEventListener('change', (e) => {
+            handleCompressFilesSelect(Array.from(e.target.files));
+        });
+    }
+    
+    // Drag & Drop для сжатия
+    if (compressUploadArea) {
+        compressUploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            compressUploadArea.style.borderColor = '#4299e1';
+            compressUploadArea.style.background = '#ebf8ff';
+        });
+        
+        compressUploadArea.addEventListener('dragleave', () => {
+            compressUploadArea.style.borderColor = '#cbd5e0';
+            compressUploadArea.style.background = '#f7fafc';
+        });
+        
+        compressUploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            compressUploadArea.style.borderColor = '#cbd5e0';
+            compressUploadArea.style.background = '#f7fafc';
+            
+            const files = Array.from(e.dataTransfer.files).filter(file => file.type.startsWith('image/'));
+            if (files.length > 0) {
+                handleCompressFilesSelect(files);
+            }
+        });
+    }
+    
+    // Очистка файлов
+    if (clearCompressFilesBtn) {
+        clearCompressFilesBtn.addEventListener('click', () => {
+            compressSelectedFiles = [];
+            compressFileInput.value = '';
+            updateCompressFilesList();
+        });
+    }
+    
+    // Проверка поддержки File System Access API для сжатия
+    if (compressChooseFolderCheckbox && !('showDirectoryPicker' in window)) {
+        compressChooseFolderCheckbox.disabled = true;
+        compressChooseFolderCheckbox.checked = false;
+        if (document.getElementById('compressSaveHint')) {
+            document.getElementById('compressSaveHint').style.display = 'block';
+        }
+    }
+    
+    // Обработка отправки формы сжатия
+    if (compressForm) {
+        compressForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (compressSelectedFiles.length === 0) {
+                showCompressError('Пожалуйста, выберите изображения');
+                return;
+            }
+            
+            const formData = new FormData();
+            compressSelectedFiles.forEach(file => {
+                formData.append('imageFiles', file);
+            });
+            
+            // Показываем загрузку
+            compressBtn.disabled = true;
+            compressBtnText.style.display = 'none';
+            compressBtnLoader.style.display = 'block';
+            hideCompressMessages();
+            
+            try {
+                const compressLevel = compressLevelSlider.value;
+                
+                const queryParams = `level=${compressLevel}&preserveFormat=false`;
+                
+                const response = await fetch(`/compress?${queryParams}`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Ошибка при сжатии');
+                }
+                
+                // Получаем файл (изображение или ZIP)
+                const blob = await response.blob();
+                
+                // Проверяем, нужно ли выбирать папку
+                if (compressChooseFolderCheckbox.checked && 'showDirectoryPicker' in window) {
+                    try {
+                        const directoryHandle = await window.showDirectoryPicker();
+                        await saveCompressToDirectory(directoryHandle, blob, compressSelectedFiles.length === 1);
+                        
+                        const message = compressSelectedFiles.length === 1 
+                            ? 'Изображение успешно сжато и сохранено!'
+                            : `${compressSelectedFiles.length} изображений успешно сжаты и сохранены!`;
+                        showCompressSuccess(message);
+                        
+                        // Очищаем список файлов
+                        compressSelectedFiles = [];
+                        compressFileInput.value = '';
+                        updateCompressFilesList();
+                    } catch (error) {
+                        if (error.name !== 'AbortError') {
+                            console.error('Ошибка при выборе папки:', error);
+                            downloadCompressFile(blob, compressSelectedFiles.length === 1);
+                            showCompressSuccess('Файл сохранен в папку загрузок');
+                            
+                            compressSelectedFiles = [];
+                            compressFileInput.value = '';
+                            updateCompressFilesList();
+                        }
+                    }
+                } else {
+                    // Стандартное скачивание
+                    downloadCompressFile(blob, compressSelectedFiles.length === 1);
+                    
+                    const message = compressSelectedFiles.length === 1 
+                        ? 'Изображение успешно сжато и загружено!'
+                        : `${compressSelectedFiles.length} изображений успешно сжаты и загружены!`;
+                    showCompressSuccess(message);
+                    
+                    compressSelectedFiles = [];
+                    compressFileInput.value = '';
+                    updateCompressFilesList();
+                }
+                
+            } catch (error) {
+                showCompressError(error.message || 'Произошла ошибка при сжатии');
+            } finally {
+                // Скрываем загрузку
+                compressBtn.disabled = false;
+                compressBtnText.style.display = 'block';
+                compressBtnLoader.style.display = 'none';
+            }
+        });
+    }
+}
+
+// Обработка выбранных файлов для сжатия
+function handleCompressFilesSelect(files) {
+    compressSelectedFiles = files;
+    updateCompressFilesList();
+}
+
+// Функция обновления предварительного размера файла при сжатии
+function updateCompressSize() {
+    if (compressSelectedFiles.length === 0) {
+        if (compressSizeInfo) compressSizeInfo.style.display = 'none';
+        return;
+    }
+    
+    const compressLevel = compressLevelSlider ? parseInt(compressLevelSlider.value) : 80;
+    
+    // Приблизительный расчет размера после сжатия
+    // Уровень сжатия влияет на качество: 1 = максимальное сжатие (низкое качество), 100 = минимальное сжатие (высокое качество)
+    // Все файлы конвертируются в WebP для лучшего сжатия
+    
+    const totalOriginalSize = compressSelectedFiles.reduce((sum, file) => sum + file.size, 0);
+    
+    // Более реалистичная формула: учитываем, что сжатие нелинейно и WebP обеспечивает лучшее сжатие
+    // При уровне 1 (максимальное сжатие) размер может быть ~20-30% от оригинала (WebP + низкое качество)
+    // При уровне 100 (минимальное сжатие) размер будет ~70-80% от оригинала (WebP + высокое качество)
+    const minCompressionRatio = 0.2; // Минимальное сжатие (уровень 1)
+    const maxCompressionRatio = 0.8; // Максимальное сжатие (уровень 100)
+    const compressionRatio = minCompressionRatio + ((compressLevel - 1) / 99) * (maxCompressionRatio - minCompressionRatio);
+    
+    const estimatedSize = Math.round(totalOriginalSize * compressionRatio);
+    
+    if (compressSizeInfo && compressSizeValue) {
+        compressSizeValue.textContent = formatFileSize(estimatedSize);
+        compressSizeInfo.style.display = 'flex';
+    }
+}
+
+// Обновление списка файлов для сжатия
+function updateCompressFilesList() {
+    if (!compressFilesContainer || !compressFilesList || !compressFilesCount) return;
+    
+    if (compressSelectedFiles.length === 0) {
+        compressFilesList.style.display = 'none';
+        compressBtn.disabled = true;
+        updateCompressSize(); // Обновляем размер при изменении файлов
+        return;
+    }
+    
+    compressFilesList.style.display = 'block';
+    compressFilesCount.textContent = compressSelectedFiles.length;
+    compressBtn.disabled = false;
+    updateCompressSize(); // Обновляем размер при изменении файлов
+    
+    compressFilesContainer.innerHTML = '';
+    
+    compressSelectedFiles.forEach((file, index) => {
+        const fileItem = document.createElement('div');
+        fileItem.className = 'file-item';
+        
+        const fileInfo = document.createElement('div');
+        fileInfo.className = 'file-info';
+        
+        const fileName = document.createElement('span');
+        fileName.className = 'file-name';
+        fileName.textContent = file.name;
+        
+        const fileSize = document.createElement('span');
+        fileSize.className = 'file-size';
+        fileSize.textContent = formatFileSize(file.size);
+        
+        fileInfo.appendChild(fileName);
+        fileInfo.appendChild(fileSize);
+        
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'file-remove';
+        removeBtn.innerHTML = '×';
+        removeBtn.addEventListener('click', () => {
+            compressSelectedFiles.splice(index, 1);
+            updateCompressFilesList();
+        });
+        
+        fileItem.appendChild(fileInfo);
+        fileItem.appendChild(removeBtn);
+        compressFilesContainer.appendChild(fileItem);
+    });
+}
+
+// Сохранение сжатого файла
+function downloadCompressFile(blob, isSingle) {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    
+    if (isSingle) {
+        const originalName = compressSelectedFiles[0].name;
+        const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
+        a.download = nameWithoutExt + '_compressed.webp';
+    } else {
+        a.download = 'compressed_images.zip';
+    }
+    
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+}
+
+// Сохранение в выбранную папку для сжатия
+async function saveCompressToDirectory(directoryHandle, blob, isSingle) {
+    if (isSingle) {
+        const originalName = compressSelectedFiles[0].name;
+        const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
+        const extension = preserveFormatCheckbox.checked ? originalName.match(/\.[^/.]+$/)?.[0] || '.jpg' : '.webp';
+        const fileName = nameWithoutExt + '_compressed' + extension;
+        const fileHandle = await directoryHandle.getFileHandle(fileName, { create: true });
+        const writable = await fileHandle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+    } else {
+        const fileHandle = await directoryHandle.getFileHandle('compressed_images.zip', { create: true });
+        const writable = await fileHandle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+    }
+}
+
+// Сообщения для сжатия
+function showCompressError(message) {
+    if (compressErrorMessage) {
+        compressErrorMessage.textContent = message;
+        compressErrorMessage.style.display = 'block';
+        if (compressSuccessMessage) {
+            compressSuccessMessage.style.display = 'none';
+        }
+    }
+}
+
+function showCompressSuccess(message) {
+    if (compressSuccessMessage) {
+        compressSuccessMessage.textContent = message;
+        compressSuccessMessage.style.display = 'block';
+        if (compressErrorMessage) {
+            compressErrorMessage.style.display = 'none';
+        }
+    }
+}
+
+function hideCompressMessages() {
+    if (compressErrorMessage) compressErrorMessage.style.display = 'none';
+    if (compressSuccessMessage) compressSuccessMessage.style.display = 'none';
 }
 
 // Обработчики событий

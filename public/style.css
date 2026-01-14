@@ -598,8 +598,220 @@ h1 {
 .optimize-labels {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     font-size: 12px;
     color: #718096;
+}
+
+.optimize-labels span:nth-child(2) {
+    font-weight: 600;
+    color: #2d3748;
+    font-size: 14px;
+}
+
+.optimize-size-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    padding: 8px 12px;
+    background: #f7fafc;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    font-size: 13px;
+}
+
+.optimize-size-label {
+    color: #718096;
+}
+
+.optimize-size-value {
+    font-weight: 600;
+    color: #2d3748;
+}
+
+/* Стили для вкладки сжатия */
+.compress-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    margin-bottom: 20px;
+    padding: 20px;
+    background: #f7fafc;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.compress-option {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.compress-label {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #2d3748;
+}
+
+.compress-label>span:first-child {
+    font-weight: 600;
+    color: #1a202c;
+}
+
+.compress-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.compress-slider {
+    width: 100%;
+    height: 8px;
+    border-radius: 4px;
+    background: #e2e8f0;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+    cursor: pointer;
+}
+
+.compress-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #4299e1;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(66, 153, 225, 0.3);
+}
+
+.compress-slider::-webkit-slider-thumb:hover {
+    background: #3182ce;
+    transform: scale(1.1);
+    box-shadow: 0 3px 6px rgba(66, 153, 225, 0.4);
+}
+
+.compress-slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #4299e1;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(66, 153, 225, 0.3);
+}
+
+.compress-slider::-moz-range-thumb:hover {
+    background: #3182ce;
+    transform: scale(1.1);
+    box-shadow: 0 3px 6px rgba(66, 153, 225, 0.4);
+}
+
+.compress-labels {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: #718096;
+}
+
+.compress-labels span:nth-child(2) {
+    font-weight: 600;
+    color: #4299e1;
+    font-size: 14px;
+}
+
+.compress-hint {
+    font-size: 12px;
+    color: #718096;
+    font-style: italic;
+    margin-top: 4px;
+}
+
+.compress-size-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    padding: 8px 12px;
+    background: #f7fafc;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    font-size: 13px;
+}
+
+.compress-size-label {
+    color: #718096;
+}
+
+.compress-size-value {
+    font-weight: 600;
+    color: #2d3748;
+}
+
+.compress-label:has(input[type="checkbox"]) {
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.compress-label:has(input[type="checkbox"]) input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    width: 22px;
+    height: 22px;
+    margin: 0;
+    z-index: 2;
+}
+
+.compress-label:has(input[type="checkbox"])::before {
+    content: '';
+    display: inline-block;
+    width: 22px;
+    height: 22px;
+    border: 2px solid #cbd5e0;
+    border-radius: 6px;
+    background: white;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.compress-label:has(input[type="checkbox"]):hover::before {
+    border-color: #4299e1;
+    background: #ebf8ff;
+    transform: scale(1.05);
+    box-shadow: 0 2px 6px rgba(66, 153, 225, 0.2);
+}
+
+.compress-label:has(input[type="checkbox"]:checked)::before {
+    border-color: #4299e1;
+    background: #4299e1;
+    box-shadow: 0 2px 8px rgba(66, 153, 225, 0.3);
+}
+
+.compress-label:has(input[type="checkbox"]:checked)::after {
+    content: '';
+    position: absolute;
+    left: 7px;
+    top: 50%;
+    transform: translateY(-50%) rotate(45deg);
+    width: 5px;
+    height: 10px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    z-index: 1;
+    pointer-events: none;
 }
 
 .save-options {
@@ -728,7 +940,8 @@ h1 {
     border-style: solid;
 }
 
-#fileInput {
+#fileInput,
+#compressFileInput {
     position: absolute;
     width: 100%;
     height: 100%;

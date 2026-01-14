@@ -42,6 +42,10 @@
                 <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg></span>
                 <span class="nav-text">История</span>
             </button>
+            <button class="nav-item" data-tab="compress">
+                <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="7.5 4.21 12 6.81 16.5 4.21"/><polyline points="7.5 19.79 7.5 14.6 3 12"/><polyline points="21 12 16.5 14.6 16.5 19.79"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span>
+                <span class="nav-text">Сжатие</span>
+            </button>
             <button class="nav-item" data-tab="settings">
                 <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"/></svg></span>
                 <span class="nav-text">Настройки</span>
@@ -127,7 +131,12 @@
                             <input type="range" id="optimizeLevel" class="optimize-slider" min="1" max="100" value="80">
                             <div class="optimize-labels">
                                 <span>Меньше размер</span>
+                                <span id="optimizeValue">80%</span>
                                 <span>Больше размер</span>
+                            </div>
+                            <div class="optimize-size-info" id="optimizeSizeInfo" style="display: none;">
+                                <span class="optimize-size-label">Приблизительный размер:</span>
+                                <span class="optimize-size-value" id="optimizeSizeValue">-</span>
                             </div>
                         </div>
                     </div>
@@ -178,6 +187,72 @@
                 <div id="historyList" class="history-list">
                     <p class="empty-history">История пуста</p>
                 </div>
+            </div>
+            
+            <!-- Вкладка Сжатие -->
+            <div class="tab-content" id="compress-tab" style="display: none;">
+                <h2 class="tab-title">Сжатие изображений</h2>
+                <p class="subtitle">Уменьшите размер фотографий любого формата без потери качества</p>
+                
+                <form id="compressForm" enctype="multipart/form-data">
+                    <!-- Настройки сжатия -->
+                    <div class="compress-settings">
+                        <div class="compress-option">
+                            <label class="compress-label">
+                                <span>Уровень сжатия:</span>
+                                <div class="compress-controls">
+                                    <input type="range" id="compressLevel" class="compress-slider" min="1" max="100" value="80">
+                                    <div class="compress-labels">
+                                        <span>Максимальное сжатие</span>
+                                        <span id="compressValue">80%</span>
+                                        <span>Минимальное сжатие</span>
+                                    </div>
+                                    <div class="compress-size-info" id="compressSizeInfo" style="display: none;">
+                                        <span class="compress-size-label">Приблизительный размер:</span>
+                                        <span class="compress-size-value" id="compressSizeValue">-</span>
+                                    </div>
+                                </div>
+                            </label>
+                            <p class="compress-hint">Чем выше значение, тем больше размер файла, но лучше качество</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Область загрузки -->
+                    <div class="upload-area" id="compressUploadArea">
+                        <input type="file" id="compressFileInput" name="imageFiles" accept="image/*" multiple required>
+                        <label for="compressFileInput" class="upload-label">
+                            <span class="upload-icon"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
+                            <span class="upload-text">Выберите изображения для сжатия</span>
+                            <span class="upload-hint">или перетащите файлы сюда (можно несколько)</span>
+                        </label>
+                    </div>
+                    
+                    <!-- Список файлов -->
+                    <div id="compressFilesList" class="files-list" style="display: none;">
+                        <div class="files-list-header">
+                            <span>Выбрано файлов: <strong id="compressFilesCount">0</strong></span>
+                            <button type="button" id="clearCompressFiles" class="clear-all-btn">Очистить все</button>
+                        </div>
+                        <div id="compressFilesContainer" class="files-container"></div>
+                    </div>
+                    
+                    <!-- Опции сохранения -->
+                    <div class="save-options">
+                        <label class="save-option-label">
+                            <input type="checkbox" id="compressChooseFolder" checked>
+                            <span>Выбрать папку для сохранения</span>
+                        </label>
+                        <small class="save-hint" id="compressSaveHint" style="display: none;">Доступно только в Chrome/Edge</small>
+                    </div>
+                    
+                    <button type="submit" id="compressBtn" class="convert-btn" disabled>
+                        <span id="compressBtnText">Сжать изображения</span>
+                        <span id="compressBtnLoader" class="loader" style="display: none;"></span>
+                    </button>
+                </form>
+                
+                <div id="compressErrorMessage" class="error-message" style="display: none;"></div>
+                <div id="compressSuccessMessage" class="success-message" style="display: none;"></div>
             </div>
             
             <!-- Вкладка Настройки -->

@@ -16,7 +16,15 @@ const supportedFormats = {
   jpeg: 'image/jpeg'
 };
 
-// Настройка multer для загрузки файлов в память
+// Определение формата по MIME типу
+function detectFormat(mimeType) {
+  if (mimeType.includes('webp')) return 'webp';
+  if (mimeType.includes('png')) return 'png';
+  if (mimeType.includes('jpeg') || mimeType.includes('jpg')) return 'jpg';
+  return null;
+}
+
+// Настройка multer для загрузки файлов в память (конвертация)
 const upload = multer({
   storage: multer.memoryStorage(),
   fileFilter: (req, file, cb) => {
@@ -33,6 +41,23 @@ const upload = multer({
   },
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB
+    files: 50 // Максимум 50 файлов
+  }
+});
+
+// Настройка multer для сжатия (принимает любые изображения)
+const uploadCompress = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: (req, file, cb) => {
+    // Принимаем любые изображения
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Только изображения разрешены!'), false);
+    }
+  },
+  limits: {
+    fileSize: 20 * 1024 * 1024, // 20MB для сжатия
     files: 50 // Максимум 50 файлов
   }
 });
@@ -204,6 +229,94 @@ app.post('/convert', upload.array('imageFiles', 50), handleMulterError, async (r
     console.error('Ошибка конвертации:', error);
     if (!res.headersSent) {
       res.status(500).json({ error: 'Ошибка при конвертации файлов: ' + error.message });
+    }
+  }
+});
+
+// API для сжатия изображений
+app.post('/compress', uploadCompress.array('imageFiles', 50), handleMulterError, async (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: 'Файлы не загружены' });
+    }
+
+    const files = req.files;
+    const compressLevel = parseInt(req.query.level) || 80; // 1-100, где 1 = максимальное сжатие (низкое качество), 100 = минимальное сжатие (высокое качество)
+    const preserveFormat = req.query.preserveFormat === 'true';
+    
+    // compressLevel напрямую используется как качество (1-100)
+    // compressLevel 1 = качество 1 (максимальное сжатие)
+    // compressLevel 100 = качество 100 (минимальное сжатие)
+    const quality = Math.max(1, Math.min(100, compressLevel));
+
+    // Если один файл - возвращаем напрямую
+    if (files.length === 1) {
+      const file = files[0];
+      const detectedFormat = detectFormat(file.mimetype);
+      
+      if (!detectedFormat) {
+        return res.status(400).json({ error: 'Неподдерживаемый формат изображения' });
+      }
+
+      const targetFormat = preserveFormat ? detectedFormat : 'webp';
+      const compressedBuffer = await convertImage(file.buffer, detectedFormat, targetFormat, quality, {});
+      
+      const mimeType = supportedFormats[targetFormat];
+      const extension = targetFormat === 'jpg' ? 'jpg' : targetFormat;
+      const originalName = path.parse(file.originalname).name;
+      const fileName = `${originalName}_compressed.${extension}`;
+
+      res.set({
+        'Content-Type': mimeType,
+        'Content-Disposition': `attachment; filename="${fileName}"`
+      });
+
+      return res.send(compressedBuffer);
+    }
+
+    // Если несколько файлов - создаем ZIP архив
+    const archive = archiver('zip', {
+      zlib: { level: 9 }
+    });
+
+    res.set({
+      'Content-Type': 'application/zip',
+      'Content-Disposition': 'attachment; filename="compressed_images.zip"'
+    });
+
+    archive.pipe(res);
+
+    // Сжимаем все файлы и добавляем в архив
+    const compressionPromises = files.map(async (file) => {
+      try {
+        const detectedFormat = detectFormat(file.mimetype);
+        
+        if (!detectedFormat) {
+          console.error(`Неподдерживаемый формат: ${file.originalname}`);
+          return;
+        }
+
+        const targetFormat = preserveFormat ? detectedFormat : 'webp';
+        const compressedBuffer = await convertImage(file.buffer, detectedFormat, targetFormat, quality, {});
+        
+        const extension = targetFormat === 'jpg' ? 'jpg' : targetFormat;
+        const originalName = path.parse(file.originalname).name;
+        const fileName = `${originalName}_compressed.${extension}`;
+        
+        archive.append(compressedBuffer, { name: fileName });
+      } catch (error) {
+        console.error(`Ошибка сжатия файла ${file.originalname}:`, error);
+        // Пропускаем проблемный файл, но продолжаем обработку остальных
+      }
+    });
+
+    await Promise.all(compressionPromises);
+    await archive.finalize();
+
+  } catch (error) {
+    console.error('Ошибка сжатия:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Ошибка при сжатии файлов: ' + error.message });
     }
   }
 });
