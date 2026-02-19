@@ -1555,3 +1555,20 @@ h1 {
         font-size: 20px;
     }
 }
+
+.history-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.history-item-type {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #718096;
+    background: #edf2f7;
+    padding: 2px 6px;
+    border-radius: 4px;
+}

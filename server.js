@@ -4,9 +4,30 @@ const sharp = require('sharp');
 const path = require('path');
 const fs = require('fs');
 const archiver = require('archiver');
+const ffmpeg = require('fluent-ffmpeg');
+const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg');
+
+ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+
+// Логирование в файл
+const logFile = path.join(__dirname, 'server.log');
+function logToFile(message) {
+  const timestamp = new Date().toISOString();
+  const logMessage = `[${timestamp}] ${message}\n`;
+  fs.appendFileSync(logFile, logMessage);
+  console.log(message);
+}
+
+logToFile('Сервер инициализируется...');
 
 const app = express();
 const PORT = 5030;
+
+// Middleware для логирования запросов
+app.use((req, res, next) => {
+  logToFile(`${req.method} ${req.url}`);
+  next();
+});
 
 // Поддерживаемые форматы
 const supportedFormats = {
@@ -30,10 +51,10 @@ const upload = multer({
   fileFilter: (req, file, cb) => {
     const fromFormat = req.query.from || 'webp';
     const expectedMime = supportedFormats[fromFormat];
-    
-    if (file.mimetype === expectedMime || 
-        (fromFormat === 'jpg' && file.mimetype === 'image/jpeg') ||
-        (fromFormat === 'jpeg' && file.mimetype === 'image/jpeg')) {
+
+    if (file.mimetype === expectedMime ||
+      (fromFormat === 'jpg' && file.mimetype === 'image/jpeg') ||
+      (fromFormat === 'jpeg' && file.mimetype === 'image/jpeg')) {
       cb(null, true);
     } else {
       cb(new Error(`Только ${fromFormat.toUpperCase()} файлы разрешены!`), false);
@@ -59,6 +80,33 @@ const uploadCompress = multer({
   limits: {
     fileSize: 20 * 1024 * 1024, // 20MB для сжатия
     files: 50 // Максимум 50 файлов
+  }
+});
+
+// Настройка multer для видео
+const uploadVideo = multer({
+  storage: multer.diskStorage({
+    destination: function (req, file, cb) {
+      const uploadDir = path.join(__dirname, 'uploads');
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir);
+      }
+      cb(null, uploadDir);
+    },
+    filename: function (req, file, cb) {
+      cb(null, Date.now() + '-' + file.originalname);
+    }
+  }),
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('video/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Только видео файлы разрешены!'), false);
+    }
+  },
+  limits: {
+    fileSize: 500 * 1024 * 1024, // 500MB
+    files: 1
   }
 });
 
@@ -93,7 +141,7 @@ const handleMulterError = (err, req, res, next) => {
 // Функция конвертации изображения с дополнительными опциями
 async function convertImage(buffer, fromFormat, toFormat, quality, options = {}) {
   let sharpInstance = sharp(buffer);
-  
+
   // Изменение размера
   if (options.resizeWidth || options.resizeHeight) {
     const resizeOptions = {};
@@ -112,23 +160,23 @@ async function convertImage(buffer, fromFormat, toFormat, quality, options = {})
     }
     sharpInstance = sharpInstance.resize(resizeOptions);
   }
-  
+
   // Поворот
   if (options.rotate) {
     const angle = parseInt(options.rotate);
     sharpInstance = sharpInstance.rotate(angle);
   }
-  
+
   // Оптимизация/сжатие (уменьшение качества)
   let finalQuality = quality;
   if (options.optimizeLevel) {
     // optimizeLevel от 1 до 100, где 1 = максимальное сжатие
     finalQuality = Math.max(10, Math.min(100, Math.round(quality * (options.optimizeLevel / 100))));
   }
-  
+
   // Настройки для разных форматов
   const formatOptions = {};
-  
+
   if (toFormat === 'png') {
     const compressionLevel = Math.round((100 - finalQuality) / 10);
     formatOptions.png = {
@@ -148,7 +196,7 @@ async function convertImage(buffer, fromFormat, toFormat, quality, options = {})
     };
     return sharpInstance.webp(formatOptions.webp).toBuffer();
   }
-  
+
   throw new Error(`Неподдерживаемый целевой формат: ${toFormat}`);
 }
 
@@ -163,7 +211,7 @@ app.post('/convert', upload.array('imageFiles', 50), handleMulterError, async (r
     const quality = parseInt(req.query.quality) || 90;
     const fromFormat = req.query.from || 'webp';
     const toFormat = req.query.to || 'png';
-    
+
     // Дополнительные опции обработки
     const processingOptions = {
       resizeWidth: req.query.resizeWidth || null,
@@ -172,12 +220,12 @@ app.post('/convert', upload.array('imageFiles', 50), handleMulterError, async (r
       rotate: req.query.rotate || null,
       optimizeLevel: req.query.optimizeLevel ? parseInt(req.query.optimizeLevel) : null
     };
-    
+
     // Проверка форматов
     if (!supportedFormats[fromFormat] || !supportedFormats[toFormat]) {
       return res.status(400).json({ error: 'Неподдерживаемый формат' });
     }
-    
+
     if (fromFormat === toFormat && !processingOptions.resizeWidth && !processingOptions.resizeHeight && !processingOptions.rotate && !processingOptions.optimizeLevel) {
       return res.status(400).json({ error: 'Выберите хотя бы одну операцию обработки' });
     }
@@ -243,7 +291,7 @@ app.post('/compress', uploadCompress.array('imageFiles', 50), handleMulterError,
     const files = req.files;
     const compressLevel = parseInt(req.query.level) || 80; // 1-100, где 1 = максимальное сжатие (низкое качество), 100 = минимальное сжатие (высокое качество)
     const preserveFormat = req.query.preserveFormat === 'true';
-    
+
     // compressLevel напрямую используется как качество (1-100)
     // compressLevel 1 = качество 1 (максимальное сжатие)
     // compressLevel 100 = качество 100 (минимальное сжатие)
@@ -253,14 +301,14 @@ app.post('/compress', uploadCompress.array('imageFiles', 50), handleMulterError,
     if (files.length === 1) {
       const file = files[0];
       const detectedFormat = detectFormat(file.mimetype);
-      
+
       if (!detectedFormat) {
         return res.status(400).json({ error: 'Неподдерживаемый формат изображения' });
       }
 
       const targetFormat = preserveFormat ? detectedFormat : 'webp';
       const compressedBuffer = await convertImage(file.buffer, detectedFormat, targetFormat, quality, {});
-      
+
       const mimeType = supportedFormats[targetFormat];
       const extension = targetFormat === 'jpg' ? 'jpg' : targetFormat;
       const originalName = path.parse(file.originalname).name;
@@ -290,7 +338,7 @@ app.post('/compress', uploadCompress.array('imageFiles', 50), handleMulterError,
     const compressionPromises = files.map(async (file) => {
       try {
         const detectedFormat = detectFormat(file.mimetype);
-        
+
         if (!detectedFormat) {
           console.error(`Неподдерживаемый формат: ${file.originalname}`);
           return;
@@ -298,11 +346,11 @@ app.post('/compress', uploadCompress.array('imageFiles', 50), handleMulterError,
 
         const targetFormat = preserveFormat ? detectedFormat : 'webp';
         const compressedBuffer = await convertImage(file.buffer, detectedFormat, targetFormat, quality, {});
-        
+
         const extension = targetFormat === 'jpg' ? 'jpg' : targetFormat;
         const originalName = path.parse(file.originalname).name;
         const fileName = `${originalName}_compressed.${extension}`;
-        
+
         archive.append(compressedBuffer, { name: fileName });
       } catch (error) {
         console.error(`Ошибка сжатия файла ${file.originalname}:`, error);
@@ -314,11 +362,71 @@ app.post('/compress', uploadCompress.array('imageFiles', 50), handleMulterError,
     await archive.finalize();
 
   } catch (error) {
-    console.error('Ошибка сжатия:', error);
     if (!res.headersSent) {
       res.status(500).json({ error: 'Ошибка при сжатии файлов: ' + error.message });
     }
   }
+});
+
+// API для сжатия видео
+app.post('/compress-video', uploadVideo.single('videoFile'), handleMulterError, (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'Видео файл не загружен' });
+  }
+
+  const inputFile = req.file.path;
+  const outputFileName = `compressed_${req.file.filename}`;
+  const outputFile = path.join(__dirname, 'uploads', outputFileName);
+
+  const quality = req.query.quality || 'medium'; // low, medium, high
+  const resolution = req.query.resolution || 'original'; // original, 720p, 480p
+
+  let crf = 23; // Default medium
+  let preset = 'medium';
+
+  if (quality === 'low') {
+    crf = 28;
+    preset = 'faster';
+  } else if (quality === 'high') {
+    crf = 18;
+    preset = 'slow';
+  }
+
+  let ffmpegCommand = ffmpeg(inputFile)
+    .outputOptions([
+      `-c:v libx264`,
+      `-crf ${crf}`,
+      `-preset ${preset}`,
+      `-c:a aac`,
+      `-b:a 128k`
+    ]);
+
+  if (resolution === '720p') {
+    ffmpegCommand = ffmpegCommand.size('?x720');
+  } else if (resolution === '480p') {
+    ffmpegCommand = ffmpegCommand.size('?x480');
+  }
+
+  ffmpegCommand
+    .on('end', () => {
+      res.download(outputFile, (err) => {
+        if (err) {
+          console.error('Ошибка отправки файла:', err);
+        }
+        // Удаляем файлы после отправки
+        fs.unlink(inputFile, () => { });
+        fs.unlink(outputFile, (err) => {
+          if (err) console.error('Ошибка удаления output файла:', err);
+        });
+      });
+    })
+    .on('error', (err) => {
+      logToFile(`ОШИБКА сжатия видео: ${err.message}`);
+      fs.unlink(inputFile, () => { });
+      if (fs.existsSync(outputFile)) fs.unlink(outputFile, () => { });
+      res.status(500).json({ error: 'Ошибка сжатия видео: ' + err.message });
+    })
+    .save(outputFile);
 });
 
 app.listen(PORT, () => {

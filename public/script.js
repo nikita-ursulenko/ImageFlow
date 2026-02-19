@@ -52,6 +52,27 @@ const compressSizeInfo = document.getElementById('compressSizeInfo');
 const compressSizeValue = document.getElementById('compressSizeValue');
 const compressChooseFolderCheckbox = document.getElementById('compressChooseFolder');
 
+// Элементы для видео
+const videoForm = document.getElementById('videoForm');
+const videoFileInput = document.getElementById('videoFileInput');
+const videoUploadArea = document.getElementById('videoUploadArea');
+const videoFilesList = document.getElementById('videoFilesList');
+const videoFilesContainer = document.getElementById('videoFilesContainer');
+const clearVideoFileBtn = document.getElementById('clearVideoFile');
+const compressVideoBtn = document.getElementById('compressVideoBtn');
+const compressVideoBtnText = document.getElementById('compressVideoBtnText');
+const compressVideoBtnLoader = document.getElementById('compressVideoBtnLoader');
+const videoErrorMessage = document.getElementById('videoErrorMessage');
+const videoSuccessMessage = document.getElementById('videoSuccessMessage');
+const videoQualitySelect = document.getElementById('videoQuality');
+const videoResolutionSelect = document.getElementById('videoResolution');
+
+const videoResult = document.getElementById('videoResult');
+const videoDownloadLink = document.getElementById('videoDownloadLink');
+const videoResultText = document.getElementById('videoResultText');
+
+let selectedVideoFile = null;
+
 let compressSelectedFiles = [];
 
 // Маппинг форматов
@@ -80,6 +101,7 @@ setupTabs();
 updateFileInputAccept();
 updateTitle();
 setupCompressTab();
+setupVideoTab();
 
 // Обработчики для новых опций обработки
 const enableResizeCheckbox = document.getElementById('enableResize');
@@ -128,30 +150,30 @@ function updateOptimizeSize() {
         if (optimizeSizeInfo) optimizeSizeInfo.style.display = 'none';
         return;
     }
-    
+
     if (selectedFiles.length === 0) {
         if (optimizeSizeInfo) optimizeSizeInfo.style.display = 'none';
         return;
     }
-    
+
     const optimizeLevel = optimizeLevelSlider ? parseInt(optimizeLevelSlider.value) : 80;
-    
+
     // Приблизительный расчет размера после оптимизации
     // Уровень оптимизации влияет на качество: 1 = максимальное сжатие (низкое качество), 100 = минимальное сжатие (высокое качество)
     // Приблизительная формула: новый_размер ≈ исходный_размер * (уровень_оптимизации / 100)
     // Для более точного расчета нужно учитывать формат и особенности изображения
-    
+
     const totalOriginalSize = selectedFiles.reduce((sum, file) => sum + file.size, 0);
-    
+
     // Более реалистичная формула: учитываем, что сжатие нелинейно
     // При уровне 1 (максимальное сжатие) размер может быть ~30-40% от оригинала
     // При уровне 100 (минимальное сжатие) размер будет ~90-100% от оригинала
     const minCompressionRatio = 0.3; // Минимальное сжатие (уровень 1)
     const maxCompressionRatio = 1.0; // Максимальное сжатие (уровень 100)
     const compressionRatio = minCompressionRatio + ((optimizeLevel - 1) / 99) * (maxCompressionRatio - minCompressionRatio);
-    
+
     const estimatedSize = Math.round(totalOriginalSize * compressionRatio);
-    
+
     if (optimizeSizeInfo && optimizeSizeValue) {
         optimizeSizeValue.textContent = formatFileSize(estimatedSize);
         optimizeSizeInfo.style.display = 'flex';
@@ -184,7 +206,7 @@ fromFormatSelect.addEventListener('change', () => {
     fileInput.value = '';
     selectedFiles = [];
     updateFilesList();
-    
+
     // Обновляем целевой формат, если он совпадает с исходным
     if (fromFormatSelect.value === toFormatSelect.value) {
         toFormatSelect.value = toFormatSelect.value === 'png' ? 'jpg' : 'png';
@@ -209,23 +231,23 @@ fileInput.addEventListener('change', (e) => {
     if (e.target.files.length > 0) {
         const fromFormat = fromFormatSelect.value;
         const files = Array.from(e.target.files);
-        
+
         // Фильтруем файлы по формату
         const validFiles = files.filter(file => {
             const expectedMime = formatMimeTypes[fromFormat];
-            return file.type === expectedMime || 
-                   file.name.toLowerCase().endsWith(formatExtensions[fromFormat]);
+            return file.type === expectedMime ||
+                file.name.toLowerCase().endsWith(formatExtensions[fromFormat]);
         });
-        
+
         if (validFiles.length === 0) {
             showError(`Пожалуйста, выберите файлы формата ${fromFormat.toUpperCase()}`);
             return;
         }
-        
+
         if (validFiles.length < files.length) {
             showError(`Некоторые файлы не соответствуют формату ${fromFormat.toUpperCase()}`);
         }
-        
+
         handleFilesSelect(validFiles);
     }
 });
@@ -243,28 +265,28 @@ uploadArea.addEventListener('dragleave', () => {
 uploadArea.addEventListener('drop', (e) => {
     e.preventDefault();
     uploadArea.classList.remove('dragover');
-    
+
     const fromFormat = fromFormatSelect.value;
     const expectedMime = formatMimeTypes[fromFormat];
     const expectedExt = formatExtensions[fromFormat];
-    
+
     const files = Array.from(e.dataTransfer.files).filter(file => {
-        return file.type === expectedMime || 
-               file.name.toLowerCase().endsWith(expectedExt);
+        return file.type === expectedMime ||
+            file.name.toLowerCase().endsWith(expectedExt);
     });
-    
+
     if (files.length === 0) {
         showError(`Пожалуйста, выберите файлы формата ${fromFormat.toUpperCase()}`);
         return;
     }
-    
+
     // Добавляем новые файлы к существующим
     const dataTransfer = new DataTransfer();
     selectedFiles.forEach(file => dataTransfer.items.add(file));
     files.forEach(file => dataTransfer.items.add(file));
     fileInput.files = dataTransfer.files;
     selectedFiles = Array.from(fileInput.files);
-    
+
     updateFilesList();
 });
 
@@ -277,20 +299,20 @@ function handleFilesSelect(files) {
 // Обновление списка файлов
 function updateFilesList() {
     filesContainer.innerHTML = '';
-    
+
     if (selectedFiles.length === 0) {
         filesList.style.display = 'none';
         convertBtn.disabled = true;
         updateOptimizeSize(); // Обновляем размер при изменении файлов
         return;
     }
-    
+
     filesList.style.display = 'block';
     filesCount.textContent = selectedFiles.length;
     convertBtn.disabled = false;
     hideMessages();
     updateOptimizeSize(); // Обновляем размер при изменении файлов
-    
+
     selectedFiles.forEach((file, index) => {
         const fileItem = document.createElement('div');
         fileItem.className = 'file-item';
@@ -306,7 +328,7 @@ function updateFilesList() {
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
         `;
-        
+
         // Создаем превью изображения
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -319,7 +341,7 @@ function updateFilesList() {
         reader.readAsDataURL(file);
         filesContainer.appendChild(fileItem);
     });
-    
+
     // Обработчики удаления файлов
     document.querySelectorAll('.remove-file-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -332,11 +354,11 @@ function updateFilesList() {
 // Удаление файла
 function removeFile(index) {
     selectedFiles.splice(index, 1);
-    
+
     const dataTransfer = new DataTransfer();
     selectedFiles.forEach(file => dataTransfer.items.add(file));
     fileInput.files = dataTransfer.files;
-    
+
     updateFilesList();
 }
 
@@ -364,84 +386,83 @@ function formatFileSize(bytes) {
 // Отправка формы
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    
+
     if (selectedFiles.length === 0) {
         showError('Пожалуйста, выберите файлы');
         return;
     }
-    
+
     const formData = new FormData();
     selectedFiles.forEach(file => {
         formData.append('imageFiles', file);
     });
-    
+
     // Показываем загрузку
     convertBtn.disabled = true;
     btnText.style.display = 'none';
     btnLoader.style.display = 'block';
     hideMessages();
-    
+
     try {
         const quality = getPngQuality();
         const fromFormat = fromFormatSelect.value;
         const toFormat = toFormatSelect.value;
-        
+
         // Собираем параметры обработки
         let queryParams = `quality=${quality}&from=${fromFormat}&to=${toFormat}`;
-        
+
         const enableResizeEl = document.getElementById('enableResize');
         const enableRotateEl = document.getElementById('enableRotate');
         const enableOptimizeEl = document.getElementById('enableOptimize');
-        
+
         if (enableResizeEl && enableResizeEl.checked) {
             const resizeWidth = document.getElementById('resizeWidth').value;
             const resizeHeight = document.getElementById('resizeHeight').value;
             const maintainAspectRatio = document.getElementById('maintainAspectRatio').checked;
-            
+
             if (resizeWidth) queryParams += `&resizeWidth=${resizeWidth}`;
             if (resizeHeight) queryParams += `&resizeHeight=${resizeHeight}`;
             if (maintainAspectRatio) queryParams += `&maintainAspectRatio=true`;
         }
-        
+
         if (enableRotateEl && enableRotateEl.checked) {
             const rotateAngle = document.getElementById('rotateAngle').value;
             if (rotateAngle) queryParams += `&rotate=${rotateAngle}`;
         }
-        
+
         if (enableOptimizeEl && enableOptimizeEl.checked) {
             const optimizeLevel = document.getElementById('optimizeLevel').value;
             if (optimizeLevel) queryParams += `&optimizeLevel=${optimizeLevel}`;
         }
-        
+
         const response = await fetch(`/convert?${queryParams}`, {
             method: 'POST',
             body: formData
         });
-        
+
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.error || 'Ошибка при конвертации');
         }
-        
+
         // Получаем файл (PNG или ZIP)
         const blob = await response.blob();
-        
+
         // Проверяем, нужно ли выбирать папку
         if (chooseFolderCheckbox.checked && 'showDirectoryPicker' in window) {
             try {
                 // Выбираем папку для сохранения
                 const directoryHandle = await window.showDirectoryPicker();
                 await saveToDirectory(directoryHandle, blob, selectedFiles.length === 1);
-                
-                const message = selectedFiles.length === 1 
+
+                const message = selectedFiles.length === 1
                     ? 'Файл успешно сконвертирован и сохранен!'
                     : `${selectedFiles.length} файлов успешно сконвертированы и сохранены!`;
                 showSuccess(message);
-                
+
                 // Добавляем в историю
-                const totalSize = selectedFiles.reduce((sum, f) => sum + f.size, 0);
-                addToHistory(selectedFiles.length, totalSize);
-                
+                addToHistory(selectedFiles, 'image');
+
                 // Очищаем список файлов после успешной конвертации
                 clearAllFiles();
             } catch (error) {
@@ -450,11 +471,10 @@ form.addEventListener('submit', async (e) => {
                     // Fallback на стандартное скачивание
                     downloadFile(blob, selectedFiles.length === 1);
                     showSuccess('Файл сохранен в папку загрузок');
-                    
+
                     // Добавляем в историю
-                    const totalSize = selectedFiles.reduce((sum, f) => sum + f.size, 0);
-                    addToHistory(selectedFiles.length, totalSize);
-                    
+                    addToHistory(selectedFiles, 'image');
+
                     // Очищаем список файлов после успешной конвертации
                     clearAllFiles();
                 }
@@ -462,20 +482,20 @@ form.addEventListener('submit', async (e) => {
         } else {
             // Стандартное скачивание
             downloadFile(blob, selectedFiles.length === 1);
-            
-            const message = selectedFiles.length === 1 
+
+            const message = selectedFiles.length === 1
                 ? 'Файл успешно сконвертирован и загружен!'
                 : `${selectedFiles.length} файлов успешно сконвертированы и загружены!`;
             showSuccess(message);
-            
+
             // Добавляем в историю
             const totalSize = selectedFiles.reduce((sum, f) => sum + f.size, 0);
-            addToHistory(selectedFiles.length, totalSize);
-            
+            addToHistory(selectedFiles, 'image');
+
             // Очищаем список файлов после успешной конвертации
             clearAllFiles();
         }
-        
+
     } catch (error) {
         showError(error.message || 'Произошла ошибка при конвертации');
     } finally {
@@ -508,18 +528,18 @@ function downloadFile(blob, isSingle) {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    
-        const toFormat = toFormatSelect.value;
-        const toExt = formatExtensions[toFormat];
-        
-        if (isSingle) {
-            const originalName = selectedFiles[0].name;
-            const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
-            a.download = nameWithoutExt + toExt;
-        } else {
-            a.download = `converted_images.${toFormat === 'jpg' ? 'zip' : 'zip'}`;
-        }
-    
+
+    const toFormat = toFormatSelect.value;
+    const toExt = formatExtensions[toFormat];
+
+    if (isSingle) {
+        const originalName = selectedFiles[0].name;
+        const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
+        a.download = nameWithoutExt + toExt;
+    } else {
+        a.download = `converted_images.${toFormat === 'jpg' ? 'zip' : 'zip'}`;
+    }
+
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -528,18 +548,18 @@ function downloadFile(blob, isSingle) {
 
 // Сохранение в выбранную папку (File System Access API)
 async function saveToDirectory(directoryHandle, blob, isSingle) {
-        if (isSingle) {
-            // Сохраняем один файл
-            const toFormat = toFormatSelect.value;
-            const toExt = formatExtensions[toFormat];
-            const originalName = selectedFiles[0].name;
-            const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
-            const fileName = nameWithoutExt + toExt;
-            const fileHandle = await directoryHandle.getFileHandle(fileName, { create: true });
-            const writable = await fileHandle.createWritable();
-            await writable.write(blob);
-            await writable.close();
-        } else {
+    if (isSingle) {
+        // Сохраняем один файл
+        const toFormat = toFormatSelect.value;
+        const toExt = formatExtensions[toFormat];
+        const originalName = selectedFiles[0].name;
+        const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
+        const fileName = nameWithoutExt + toExt;
+        const fileHandle = await directoryHandle.getFileHandle(fileName, { create: true });
+        const writable = await fileHandle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+    } else {
         // Для нескольких файлов сохраняем ZIP
         // В будущем можно добавить распаковку, но пока сохраняем как ZIP
         const fileHandle = await directoryHandle.getFileHandle('converted_images.zip', { create: true });
@@ -555,14 +575,14 @@ function setupTabs() {
         btn.addEventListener('click', () => {
             const tabName = btn.getAttribute('data-tab');
             switchTab(tabName);
-            
+
             // Закрываем меню на мобильных после выбора
             if (window.innerWidth <= 768) {
                 setTimeout(() => closeMobileMenu(), 200);
             }
         });
     });
-    
+
     // Обработка кнопки меню для мобильных
     if (menuToggle) {
         menuToggle.addEventListener('click', (e) => {
@@ -570,21 +590,21 @@ function setupTabs() {
             toggleMobileMenu();
         });
     }
-    
+
     // Обработка кнопки закрытия меню
     if (sidebarClose) {
         sidebarClose.addEventListener('click', () => {
             closeMobileMenu();
         });
     }
-    
+
     // Закрытие меню при клике на затемнение
     if (sidebarOverlay) {
         sidebarOverlay.addEventListener('click', () => {
             closeMobileMenu();
         });
     }
-    
+
     // Закрытие меню при клике вне его на мобильных
     document.addEventListener('click', (e) => {
         if (window.innerWidth <= 768 && sidebar && menuToggle) {
@@ -593,7 +613,7 @@ function setupTabs() {
             }
         }
     });
-    
+
     // Обработка изменения размера окна
     let resizeTimer;
     window.addEventListener('resize', () => {
@@ -643,17 +663,17 @@ function switchTab(tabName) {
         content.classList.remove('active');
         content.style.display = 'none';
     });
-    
+
     // Активируем выбранную вкладку
     const activeBtn = document.querySelector(`[data-tab="${tabName}"]`);
     const activeContent = document.getElementById(`${tabName}-tab`);
-    
+
     if (activeBtn && activeContent) {
         activeBtn.classList.add('active');
         activeContent.classList.add('active');
         activeContent.style.display = 'block';
     }
-    
+
     // Обновляем историю при открытии вкладки
     if (tabName === 'history') {
         loadHistory();
@@ -661,26 +681,28 @@ function switchTab(tabName) {
 }
 
 // Работа с историей
-function addToHistory(filesCount, totalSize) {
+function addToHistory(files, type = 'image') {
     const history = getHistory();
+    const totalSize = files.reduce((sum, f) => sum + (f.size || 0), 0);
     const entry = {
         id: Date.now(),
         date: new Date().toISOString(),
-        filesCount: filesCount,
+        type: type,
+        filesCount: files.length,
         totalSize: totalSize,
-        files: selectedFiles.map(f => ({
+        files: files.map(f => ({
             name: f.name,
             size: f.size
         }))
     };
-    
+
     history.unshift(entry);
-    
+
     // Ограничиваем историю 100 записями
     if (history.length > 100) {
         history.splice(100);
     }
-    
+
     // Автоматическая очистка старых записей
     if (autoClearHistoryCheckbox.checked) {
         const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
@@ -705,12 +727,12 @@ function getHistory() {
 function loadHistory() {
     const history = getHistory();
     historyTotal.textContent = history.length;
-    
+
     if (history.length === 0) {
         historyList.innerHTML = '<p class="empty-history">История пуста</p>';
         return;
     }
-    
+
     historyList.innerHTML = history.map(entry => {
         const date = new Date(entry.date);
         const dateStr = date.toLocaleDateString('ru-RU', {
@@ -720,15 +742,19 @@ function loadHistory() {
             hour: '2-digit',
             minute: '2-digit'
         });
-        
+
         const totalSize = entry.files.reduce((sum, f) => sum + (f.size || 0), 0);
         const sizeStr = formatFileSize(totalSize);
-        
+        const typeLabel = entry.type === 'video' ? '🎬 Видео' : '🖼️ Изображения';
+
         return `
             <div class="history-item">
                 <div class="history-item-info">
-                    <div class="history-item-name">
-                        ${entry.filesCount === 1 ? entry.files[0]?.name || 'Файл' : `${entry.filesCount} файлов`}
+                    <div class="history-item-header">
+                        <span class="history-item-type">${typeLabel}</span>
+                        <div class="history-item-name">
+                            ${entry.filesCount === 1 ? entry.files[0]?.name || 'Файл' : `${entry.filesCount} файлов`}
+                        </div>
                     </div>
                     <div class="history-item-meta">
                         <span>${dateStr}</span>
@@ -771,7 +797,7 @@ function saveSettings() {
         pngQuality: parseInt(pngQualitySelect.value),
         autoClearHistory: autoClearHistoryCheckbox.checked
     };
-    
+
     try {
         localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
         showSuccess('Настройки сохранены!');
@@ -801,7 +827,7 @@ function getPngQuality() {
 // Настройка вкладки сжатия
 function setupCompressTab() {
     if (!compressForm || !compressFileInput) return;
-    
+
     // Обновление значения слайдера
     if (compressLevelSlider && compressValue) {
         compressLevelSlider.addEventListener('input', (e) => {
@@ -809,14 +835,14 @@ function setupCompressTab() {
             updateCompressSize();
         });
     }
-    
+
     // Обработка выбора файлов для сжатия
     if (compressFileInput) {
         compressFileInput.addEventListener('change', (e) => {
             handleCompressFilesSelect(Array.from(e.target.files));
         });
     }
-    
+
     // Drag & Drop для сжатия
     if (compressUploadArea) {
         compressUploadArea.addEventListener('dragover', (e) => {
@@ -824,24 +850,24 @@ function setupCompressTab() {
             compressUploadArea.style.borderColor = '#4299e1';
             compressUploadArea.style.background = '#ebf8ff';
         });
-        
+
         compressUploadArea.addEventListener('dragleave', () => {
             compressUploadArea.style.borderColor = '#cbd5e0';
             compressUploadArea.style.background = '#f7fafc';
         });
-        
+
         compressUploadArea.addEventListener('drop', (e) => {
             e.preventDefault();
             compressUploadArea.style.borderColor = '#cbd5e0';
             compressUploadArea.style.background = '#f7fafc';
-            
+
             const files = Array.from(e.dataTransfer.files).filter(file => file.type.startsWith('image/'));
             if (files.length > 0) {
                 handleCompressFilesSelect(files);
             }
         });
     }
-    
+
     // Очистка файлов
     if (clearCompressFilesBtn) {
         clearCompressFilesBtn.addEventListener('click', () => {
@@ -850,7 +876,7 @@ function setupCompressTab() {
             updateCompressFilesList();
         });
     }
-    
+
     // Проверка поддержки File System Access API для сжатия
     if (compressChooseFolderCheckbox && !('showDirectoryPicker' in window)) {
         compressChooseFolderCheckbox.disabled = true;
@@ -859,57 +885,60 @@ function setupCompressTab() {
             document.getElementById('compressSaveHint').style.display = 'block';
         }
     }
-    
+
     // Обработка отправки формы сжатия
     if (compressForm) {
         compressForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
             if (compressSelectedFiles.length === 0) {
                 showCompressError('Пожалуйста, выберите изображения');
                 return;
             }
-            
+
             const formData = new FormData();
             compressSelectedFiles.forEach(file => {
                 formData.append('imageFiles', file);
             });
-            
+
             // Показываем загрузку
             compressBtn.disabled = true;
             compressBtnText.style.display = 'none';
             compressBtnLoader.style.display = 'block';
             hideCompressMessages();
-            
+
             try {
                 const compressLevel = compressLevelSlider.value;
-                
+
                 const queryParams = `level=${compressLevel}&preserveFormat=false`;
-                
+
                 const response = await fetch(`/compress?${queryParams}`, {
                     method: 'POST',
                     body: formData
                 });
-                
+
                 if (!response.ok) {
                     const error = await response.json();
                     throw new Error(error.error || 'Ошибка при сжатии');
                 }
-                
+
                 // Получаем файл (изображение или ZIP)
                 const blob = await response.blob();
-                
+
                 // Проверяем, нужно ли выбирать папку
                 if (compressChooseFolderCheckbox.checked && 'showDirectoryPicker' in window) {
                     try {
                         const directoryHandle = await window.showDirectoryPicker();
                         await saveCompressToDirectory(directoryHandle, blob, compressSelectedFiles.length === 1);
-                        
-                        const message = compressSelectedFiles.length === 1 
+
+                        const message = compressSelectedFiles.length === 1
                             ? 'Изображение успешно сжато и сохранено!'
                             : `${compressSelectedFiles.length} изображений успешно сжаты и сохранены!`;
                         showCompressSuccess(message);
-                        
+
+                        // Добавляем в историю
+                        addToHistory(compressSelectedFiles, 'image');
+
                         // Очищаем список файлов
                         compressSelectedFiles = [];
                         compressFileInput.value = '';
@@ -919,7 +948,10 @@ function setupCompressTab() {
                             console.error('Ошибка при выборе папки:', error);
                             downloadCompressFile(blob, compressSelectedFiles.length === 1);
                             showCompressSuccess('Файл сохранен в папку загрузок');
-                            
+
+                            // Добавляем в историю
+                            addToHistory(compressSelectedFiles, 'image');
+
                             compressSelectedFiles = [];
                             compressFileInput.value = '';
                             updateCompressFilesList();
@@ -928,17 +960,20 @@ function setupCompressTab() {
                 } else {
                     // Стандартное скачивание
                     downloadCompressFile(blob, compressSelectedFiles.length === 1);
-                    
-                    const message = compressSelectedFiles.length === 1 
+
+                    const message = compressSelectedFiles.length === 1
                         ? 'Изображение успешно сжато и загружено!'
                         : `${compressSelectedFiles.length} изображений успешно сжаты и загружены!`;
                     showCompressSuccess(message);
-                    
+
+                    // Добавляем в историю
+                    addToHistory(compressSelectedFiles, 'image');
+
                     compressSelectedFiles = [];
                     compressFileInput.value = '';
                     updateCompressFilesList();
                 }
-                
+
             } catch (error) {
                 showCompressError(error.message || 'Произошла ошибка при сжатии');
             } finally {
@@ -963,24 +998,24 @@ function updateCompressSize() {
         if (compressSizeInfo) compressSizeInfo.style.display = 'none';
         return;
     }
-    
+
     const compressLevel = compressLevelSlider ? parseInt(compressLevelSlider.value) : 80;
-    
+
     // Приблизительный расчет размера после сжатия
     // Уровень сжатия влияет на качество: 1 = максимальное сжатие (низкое качество), 100 = минимальное сжатие (высокое качество)
     // Все файлы конвертируются в WebP для лучшего сжатия
-    
+
     const totalOriginalSize = compressSelectedFiles.reduce((sum, file) => sum + file.size, 0);
-    
+
     // Более реалистичная формула: учитываем, что сжатие нелинейно и WebP обеспечивает лучшее сжатие
     // При уровне 1 (максимальное сжатие) размер может быть ~20-30% от оригинала (WebP + низкое качество)
     // При уровне 100 (минимальное сжатие) размер будет ~70-80% от оригинала (WebP + высокое качество)
     const minCompressionRatio = 0.2; // Минимальное сжатие (уровень 1)
     const maxCompressionRatio = 0.8; // Максимальное сжатие (уровень 100)
     const compressionRatio = minCompressionRatio + ((compressLevel - 1) / 99) * (maxCompressionRatio - minCompressionRatio);
-    
+
     const estimatedSize = Math.round(totalOriginalSize * compressionRatio);
-    
+
     if (compressSizeInfo && compressSizeValue) {
         compressSizeValue.textContent = formatFileSize(estimatedSize);
         compressSizeInfo.style.display = 'flex';
@@ -990,39 +1025,39 @@ function updateCompressSize() {
 // Обновление списка файлов для сжатия
 function updateCompressFilesList() {
     if (!compressFilesContainer || !compressFilesList || !compressFilesCount) return;
-    
+
     if (compressSelectedFiles.length === 0) {
         compressFilesList.style.display = 'none';
         compressBtn.disabled = true;
         updateCompressSize(); // Обновляем размер при изменении файлов
         return;
     }
-    
+
     compressFilesList.style.display = 'block';
     compressFilesCount.textContent = compressSelectedFiles.length;
     compressBtn.disabled = false;
     updateCompressSize(); // Обновляем размер при изменении файлов
-    
+
     compressFilesContainer.innerHTML = '';
-    
+
     compressSelectedFiles.forEach((file, index) => {
         const fileItem = document.createElement('div');
         fileItem.className = 'file-item';
-        
+
         const fileInfo = document.createElement('div');
         fileInfo.className = 'file-info';
-        
+
         const fileName = document.createElement('span');
         fileName.className = 'file-name';
         fileName.textContent = file.name;
-        
+
         const fileSize = document.createElement('span');
         fileSize.className = 'file-size';
         fileSize.textContent = formatFileSize(file.size);
-        
+
         fileInfo.appendChild(fileName);
         fileInfo.appendChild(fileSize);
-        
+
         const removeBtn = document.createElement('button');
         removeBtn.className = 'file-remove';
         removeBtn.innerHTML = '×';
@@ -1030,7 +1065,7 @@ function updateCompressFilesList() {
             compressSelectedFiles.splice(index, 1);
             updateCompressFilesList();
         });
-        
+
         fileItem.appendChild(fileInfo);
         fileItem.appendChild(removeBtn);
         compressFilesContainer.appendChild(fileItem);
@@ -1042,7 +1077,7 @@ function downloadCompressFile(blob, isSingle) {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    
+
     if (isSingle) {
         const originalName = compressSelectedFiles[0].name;
         const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
@@ -1050,7 +1085,7 @@ function downloadCompressFile(blob, isSingle) {
     } else {
         a.download = 'compressed_images.zip';
     }
-    
+
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -1103,5 +1138,185 @@ function hideCompressMessages() {
 }
 
 // Обработчики событий
+// Настройка вкладки видео
+function setupVideoTab() {
+    if (!videoForm || !videoFileInput) return;
+
+    videoFileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            handleVideoFileSelect(e.target.files[0]);
+        }
+    });
+
+    if (videoUploadArea) {
+        videoUploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            videoUploadArea.classList.add('dragover');
+            videoUploadArea.style.borderColor = '#4299e1';
+            videoUploadArea.style.background = '#ebf8ff';
+        });
+
+        videoUploadArea.addEventListener('dragleave', () => {
+            videoUploadArea.classList.remove('dragover');
+            videoUploadArea.style.borderColor = '#cbd5e0';
+            videoUploadArea.style.background = '#f7fafc';
+        });
+
+        videoUploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            videoUploadArea.classList.remove('dragover');
+            videoUploadArea.style.borderColor = '#cbd5e0';
+            videoUploadArea.style.background = '#f7fafc';
+
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('video/')) {
+                handleVideoFileSelect(file);
+            } else {
+                showVideoError('Пожалуйста, выберите видео файл');
+            }
+        });
+    }
+
+    if (clearVideoFileBtn) {
+        clearVideoFileBtn.addEventListener('click', () => {
+            selectedVideoFile = null;
+            videoFileInput.value = '';
+            updateVideoFilesList();
+        });
+    }
+
+
+    videoForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        if (!selectedVideoFile) {
+            showVideoError('Пожалуйста, выберите видео файл');
+            return;
+        }
+
+        const originalFileForHistory = selectedVideoFile;
+
+        const formData = new FormData();
+        formData.append('videoFile', selectedVideoFile);
+
+        compressVideoBtn.disabled = true;
+        compressVideoBtnText.style.display = 'none';
+        compressVideoBtnLoader.style.display = 'block';
+        hideVideoMessages();
+
+        try {
+            const quality = videoQualitySelect.value;
+            const resolution = videoResolutionSelect.value;
+            const queryParams = `quality=${quality}&resolution=${resolution}`;
+
+            const response = await fetch(`/compress-video?${queryParams}`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Ошибка при сжатии видео');
+            }
+
+            const blob = await response.blob();
+
+            // Обычное скачивание
+            const compressedUrl = downloadVideoFile(blob, selectedVideoFile.name);
+            showVideoSuccess('Видео успешно сжато!');
+
+            // Показываем блок с результатом
+            if (videoResult && videoDownloadLink && compressedUrl) {
+                videoDownloadLink.href = compressedUrl;
+                videoDownloadLink.download = selectedVideoFile.name.replace(/\.[^/.]+$/, '') + '_compressed.mp4';
+                videoResult.style.display = 'block';
+                if (videoResultText) {
+                    videoResultText.textContent = `Размер: ${formatFileSize(blob.size)}`;
+                }
+            }
+
+            // Добавляем в историю
+            addToHistory([originalFileForHistory], 'video');
+
+            // Очистка после успеха
+            selectedVideoFile = null;
+            videoFileInput.value = '';
+            updateVideoFilesList();
+
+        } catch (error) {
+            showVideoError(error.message || 'Произошла ошибка при сжатии видео');
+        } finally {
+            compressVideoBtn.disabled = false;
+            compressVideoBtnText.style.display = 'block';
+            compressVideoBtnLoader.style.display = 'none';
+        }
+    });
+}
+
+function handleVideoFileSelect(file) {
+    selectedVideoFile = file;
+    updateVideoFilesList();
+}
+
+function updateVideoFilesList() {
+    if (!videoFilesContainer || !videoFilesList) return;
+
+    if (!selectedVideoFile) {
+        videoFilesList.style.display = 'none';
+        compressVideoBtn.disabled = true;
+        if (videoResult) videoResult.style.display = 'none';
+        return;
+    }
+
+    videoFilesList.style.display = 'block';
+    compressVideoBtn.disabled = false;
+    if (videoResult) videoResult.style.display = 'none';
+    hideVideoMessages();
+
+    videoFilesContainer.innerHTML = '';
+    const fileItem = document.createElement('div');
+    fileItem.className = 'file-item';
+    fileItem.innerHTML = `
+        <div class="file-info">
+            <span class="file-name">${selectedVideoFile.name}</span>
+            <span class="file-size">${formatFileSize(selectedVideoFile.size)}</span>
+        </div>
+    `;
+    videoFilesContainer.appendChild(fileItem);
+}
+
+function downloadVideoFile(blob, originalName) {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
+    a.download = nameWithoutExt + '_compressed.mp4';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    return url; // Возвращаем URL для использования в кнопке "Скачать"
+}
+
+function showVideoError(message) {
+    if (videoErrorMessage) {
+        videoErrorMessage.textContent = message;
+        videoErrorMessage.style.display = 'block';
+        videoSuccessMessage.style.display = 'none';
+    }
+}
+
+function showVideoSuccess(message) {
+    if (videoSuccessMessage) {
+        videoSuccessMessage.textContent = message;
+        videoSuccessMessage.style.display = 'block';
+        videoErrorMessage.style.display = 'none';
+    }
+}
+
+function hideVideoMessages() {
+    if (videoErrorMessage) videoErrorMessage.style.display = 'none';
+    if (videoSuccessMessage) videoSuccessMessage.style.display = 'none';
+}
+
 clearHistoryBtn.addEventListener('click', clearHistory);
 saveSettingsBtn.addEventListener('click', saveSettings);
